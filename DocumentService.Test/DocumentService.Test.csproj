@@ -18,4 +18,8 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DocumentService\DocumentService.csproj" />
+  </ItemGroup>
+
 </Project>
