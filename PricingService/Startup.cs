@@ -34,6 +34,7 @@ public class Startup
         services.AddMediatR(options => options.RegisterServicesFromAssemblyContaining<Program>());
         services.AddLoggingBehavior();
         services.AddSwaggerGen();
+        services.AddDiscoveryClient(Configuration);
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

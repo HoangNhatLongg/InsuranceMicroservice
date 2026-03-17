@@ -8,6 +8,9 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.8" />
+    <PackageReference Include="Ocelot" Version="24.1.0" />
+    <PackageReference Include="Ocelot.Cache.CacheManager" Version="24.1.0" />
+    <PackageReference Include="Ocelot.Provider.Eureka" Version="24.1.0" />
   </ItemGroup>
 
   <ItemGroup>

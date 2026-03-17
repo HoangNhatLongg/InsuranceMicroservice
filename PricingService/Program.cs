@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
+using Steeltoe.Discovery.Client;
 
 namespace PricingService;
 
@@ -41,6 +42,7 @@ public class Program
             {
                 webBuilder.UseStartup<Startup>();
                 webBuilder.UseSerilog();
-            });
+            })
+            .AddDiscoveryClient();
     }
 }
