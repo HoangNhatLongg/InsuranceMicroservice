@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Demo ChatService</title>
+  <script src="https://unpkg.com/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f4f7fb;
+      color: #172033;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+
+    main {
+      width: min(920px, calc(100vw - 32px));
+      background: #ffffff;
+      border: 1px solid #d7deea;
+      border-radius: 8px;
+      box-shadow: 0 16px 40px rgba(20, 36, 64, 0.12);
+      overflow: hidden;
+    }
+
+    header {
+      padding: 20px 24px;
+      background: #18324a;
+      color: #ffffff;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    section {
+      padding: 20px 24px;
+      border-top: 1px solid #e2e7f0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    button {
+      min-height: 42px;
+      border-radius: 6px;
+      border: 1px solid #b8c3d6;
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    input,
+    select {
+      padding: 0 12px;
+      background: #ffffff;
+      color: #172033;
+    }
+
+    button {
+      padding: 0 16px;
+      border-color: #1f6feb;
+      background: #1f6feb;
+      color: #ffffff;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:disabled {
+      border-color: #a7b2c4;
+      background: #a7b2c4;
+      cursor: not-allowed;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      align-items: end;
+      margin-top: 14px;
+    }
+
+    .row input {
+      flex: 1;
+    }
+
+    #status {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: #ecfdf3;
+      color: #17633a;
+      font-weight: 700;
+    }
+
+    #log {
+      display: grid;
+      gap: 8px;
+      max-height: 340px;
+      overflow: auto;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid #dbe3ef;
+      border-radius: 8px;
+    }
+
+    .message {
+      padding: 10px 12px;
+      background: #ffffff;
+      border: 1px solid #d8e1ee;
+      border-radius: 8px;
+    }
+
+    .message strong {
+      color: #1f4f82;
+    }
+
+    .error {
+      background: #fff1f0;
+      border-color: #f1b8b5;
+      color: #8a1f17;
+    }
+
+    @media (max-width: 720px) {
+      .grid,
+      .row {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: stretch;
+      }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Demo ChatService</h1>
+    <p>Đăng nhập, kết nối SignalR, gửi tin nhắn và xem kết quả trả về qua <code>/agentsChat</code>.</p>
+  </header>
+
+  <section>
+    <div class="grid">
+      <label>
+        Tài khoản
+        <select id="login">
+          <option value="jimmy.solid">jimmy.solid / secret</option>
+          <option value="danny.solid">danny.solid / secret</option>
+          <option value="admin">admin / admin</option>
+        </select>
+      </label>
+      <label>
+        Mật khẩu
+        <input id="password" type="password" value="secret" autocomplete="current-password">
+      </label>
+    </div>
+    <div class="row">
+      <button id="connectBtn">Đăng nhập và kết nối</button>
+      <button id="disconnectBtn" disabled>Ngắt kết nối</button>
+    </div>
+    <span id="status">Chưa kết nối</span>
+  </section>
+
+  <section>
+    <label>
+      Tin nhắn
+      <div class="row">
+        <input id="message" value="Xin chào từ Demo ChatService" disabled>
+        <button id="sendBtn" disabled>Gửi</button>
+      </div>
+    </label>
+  </section>
+
+  <section>
+    <div id="log"></div>
+  </section>
+</main>
+
+<script>
+  const authUrl = 'http://localhost:6060/api/User';
+  const chatUrl = 'http://localhost:4099/agentsChat';
+  let connection = null;
+  let token = null;
+
+  const loginEl = document.getElementById('login');
+  const passwordEl = document.getElementById('password');
+  const connectBtn = document.getElementById('connectBtn');
+  const disconnectBtn = document.getElementById('disconnectBtn');
+  const sendBtn = document.getElementById('sendBtn');
+  const messageEl = document.getElementById('message');
+  const statusEl = document.getElementById('status');
+  const logEl = document.getElementById('log');
+
+  loginEl.addEventListener('change', () => {
+    passwordEl.value = loginEl.value === 'admin' ? 'admin' : 'secret';
+  });
+
+  connectBtn.addEventListener('click', connect);
+  disconnectBtn.addEventListener('click', disconnect);
+  sendBtn.addEventListener('click', sendMessage);
+  messageEl.addEventListener('keydown', event => {
+    if (event.key === 'Enter') sendMessage();
+  });
+
+  function setStatus(text) {
+    statusEl.textContent = text;
+  }
+
+  function addLog(html, className) {
+    const item = document.createElement('div');
+    item.className = `message ${className || ''}`.trim();
+    item.innerHTML = html;
+    logEl.prepend(item);
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;'
+    }[char]));
+  }
+
+  async function connect() {
+    connectBtn.disabled = true;
+    setStatus('Đang đăng nhập...');
+
+    try {
+      const authResponse = await fetch(authUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          login: loginEl.value,
+          password: passwordEl.value
+        })
+      });
+
+      if (!authResponse.ok) {
+        throw new Error(`Đăng nhập thất bại: HTTP ${authResponse.status}`);
+      }
+
+      const auth = await authResponse.json();
+      token = auth.token || auth.Token;
+
+      connection = new signalR.HubConnectionBuilder()
+        .withUrl(chatUrl, { accessTokenFactory: () => token })
+        .withAutomaticReconnect()
+        .configureLogging(signalR.LogLevel.Information)
+        .build();
+
+      connection.on('ReceiveMessage', (user, avatar, message) => {
+        addLog(`<strong>${escapeHtml(user || 'Không rõ')}</strong>: ${escapeHtml(message)}<br><small>${escapeHtml(avatar || '')}</small>`);
+      });
+
+      connection.on('ReceiveNotification', message => {
+        addLog(`<strong>Thông báo</strong>: ${escapeHtml(message)}`);
+      });
+
+      await connection.start();
+      setStatus(`Đã kết nối với tài khoản ${auth.userName || auth.UserName || loginEl.value}`);
+      disconnectBtn.disabled = false;
+      sendBtn.disabled = false;
+      messageEl.disabled = false;
+      addLog('<strong>Đã kết nối</strong>');
+    } catch (error) {
+      setStatus('Kết nối thất bại');
+      addLog(escapeHtml(error.message), 'error');
+      connectBtn.disabled = false;
+    }
+  }
+
+  async function disconnect() {
+    if (connection) {
+      await connection.stop();
+      connection = null;
+    }
+
+    token = null;
+    connectBtn.disabled = false;
+    disconnectBtn.disabled = true;
+    sendBtn.disabled = true;
+    messageEl.disabled = true;
+    setStatus('Đã ngắt kết nối');
+    addLog('<strong>Đã ngắt kết nối</strong>');
+  }
+
+  async function sendMessage() {
+    if (!connection || !messageEl.value.trim()) return;
+
+    try {
+      await connection.invoke('SendMessage', messageEl.value.trim());
+      messageEl.value = '';
+    } catch (error) {
+      addLog(escapeHtml(error.message), 'error');
+    }
+  }
+</script>
+</body>
+</html>
